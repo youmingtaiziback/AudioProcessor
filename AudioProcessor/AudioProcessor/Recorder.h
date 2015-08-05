@@ -9,5 +9,7 @@
 #import <Foundation/Foundation.h>
 
 @interface Recorder : NSObject
-
++ (instancetype)sharedInstance;
+- (void)startRecordWithFileName:(NSString *)name;
+- (void)stopRecord;
 @end
