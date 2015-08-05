@@ -31,8 +31,6 @@
         NSLog(@"Error creating session: %@", [sessionError description]);
     else
         [session setActive:YES error:nil];
-    
-    
 }
 
 - (void)viewDidUnload {
