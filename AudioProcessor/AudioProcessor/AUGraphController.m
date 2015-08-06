@@ -9,6 +9,22 @@
 #import "AUGraphController.h"
 #import <AudioToolbox/AudioToolbox.h>
 
+#define MAXBUFS  1
+#define NUMFILES 1
+
+typedef struct {
+    AudioStreamBasicDescription asbd;
+    AudioSampleType *data;
+    UInt32 numFrames;
+} SoundBuffer, *SoundBufferPtr;
+
+typedef struct {
+    UInt32 frameNum;
+    UInt32 maxNumFrames;
+    SoundBuffer soundBuffer[MAXBUFS];
+} SourceAudioBufferData, *SourceAudioBufferDataPtr;
+
+
 static void CheckError(OSStatus error, const char *operation) {
     if (error == noErr) return;
     
@@ -26,9 +42,49 @@ static void CheckError(OSStatus error, const char *operation) {
     exit(1);
 }
 
+static void SilenceData(AudioBufferList *inData) {
+    for (UInt32 i=0; i < inData->mNumberBuffers; i++)
+        memset(inData->mBuffers[i].mData, 0, inData->mBuffers[i].mDataByteSize);
+}
+
+static OSStatus renderInput(void *inRefCon,
+                            AudioUnitRenderActionFlags *ioActionFlags,
+                            const AudioTimeStamp *inTimeStamp,
+                            UInt32 inBusNumber,
+                            UInt32 inNumberFrames,
+                            AudioBufferList *ioData) {
+    SourceAudioBufferDataPtr userData = (SourceAudioBufferDataPtr)inRefCon;
+    AudioSampleType *in = userData->soundBuffer[inBusNumber].data;
+    AudioSampleType *out = (AudioSampleType *)ioData->mBuffers[0].mData;
+    
+    UInt32 sample = userData->frameNum * userData->soundBuffer[inBusNumber].asbd.mChannelsPerFrame;
+    
+    // make sure we don't attempt to render more data than we have available in the source buffers
+    // if one buffer is larger than the other, just render silence for that bus until we loop around again
+    if ((userData->frameNum + inNumberFrames) > userData->soundBuffer[inBusNumber].numFrames) {
+        UInt32 offset = (userData->frameNum + inNumberFrames) - userData->soundBuffer[inBusNumber].numFrames;
+        if (offset < inNumberFrames) {
+            // copy the last bit of source
+            SilenceData(ioData);
+            memcpy(out, &in[sample], ((inNumberFrames - offset) * userData->soundBuffer[inBusNumber].asbd.mBytesPerFrame));
+            return noErr;
+        }
+        else {
+            // we have no source data
+            SilenceData(ioData);
+            *ioActionFlags |= kAudioUnitRenderAction_OutputIsSilence;
+            return noErr;
+        }
+    }
+    
+    memcpy(out, &in[sample], ioData->mBuffers[0].mDataByteSize);
+    return noErr;
+}
+
 @interface AUGraphController () {
     AUGraph     _graph;
     AudioUnit   _effectUnit;
+    SourceAudioBufferData mUserData;
 }
 @end
 
@@ -90,13 +146,31 @@ static void CheckError(OSStatus error, const char *operation) {
     AUNode effectNode;
     CheckError(AUGraphAddNode(_graph, &effectcd, &effectNode), "couldn't get effect node [time/pitch]");
     CheckError(AUGraphNodeInfo(_graph, effectNode, NULL, &_effectUnit), "couldn't get effect unit from node");
-
-    // set stream format that the effect wants
+    // set property
     AudioStreamBasicDescription streamFormat;
     UInt32 propertySize = sizeof (streamFormat);
     CheckError(AudioUnitGetProperty(_effectUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &streamFormat, &propertySize), "13");
     CheckError(AudioUnitSetProperty(filePlayerUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 0, &streamFormat, sizeof(streamFormat)), "14");
-
+    
+    // mixer unit
+    AudioComponentDescription mixercd = {0};
+    mixercd.componentType = kAudioUnitType_Mixer;
+    mixercd.componentSubType = kAudioUnitSubType_MultiChannelMixer;
+    mixercd.componentManufacturer = kAudioUnitManufacturer_Apple;
+    AUNode mixerNode;
+    AudioUnit mixerUnit;
+    CheckError(AUGraphAddNode(_graph, &mixercd, &mixerNode), "couldn't get effect node [time/pitch]");
+    CheckError(AUGraphNodeInfo(_graph, mixerNode, NULL, &mixerUnit), "couldn't get effect unit from node");
+    // set property
+    CheckError(AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 0, &streamFormat, sizeof(streamFormat)), "14");
+    UInt32 numbuses = 1;
+    CheckError(AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_ElementCount, kAudioUnitScope_Input, 0, &numbuses, sizeof(numbuses)), "16");
+    AURenderCallbackStruct rcbs;
+    rcbs.inputProc = &renderInput;
+    rcbs.inputProcRefCon = &mUserData;
+    CheckError(AUGraphSetNodeInputCallback(_graph, mixerNode, 0, &rcbs), "23");
+    CheckError(AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &mClientFormat, sizeof(mClientFormat)), "123");
+    
     // remote io unit
     AudioComponentDescription outputcd = {0};
     outputcd.componentType = kAudioUnitType_Output;
@@ -106,13 +180,13 @@ static void CheckError(OSStatus error, const char *operation) {
     CheckError(AUGraphAddNode(_graph, &outputcd, &ioNode), "couldn't add remote io node");
     AudioUnit ioUnit;
     CheckError(AUGraphNodeInfo(_graph, ioNode, NULL, &ioUnit), "couldn't get remote io unit");
-    
     // set property
     CheckError(AudioUnitSetProperty(ioUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &streamFormat, sizeof(streamFormat)), "15");
     
     // make connections
     CheckError(AUGraphConnectNodeInput(_graph, filePlayerNode, 0, effectNode, 0), "16");
-    CheckError(AUGraphConnectNodeInput(_graph, effectNode, 0, ioNode, 0), "17");
+    CheckError(AUGraphConnectNodeInput(_graph, effectNode, 0, mixerNode, 0), "16");
+    CheckError(AUGraphConnectNodeInput(_graph, mixerNode, 0, ioNode, 0), "17");
     
     // initialize
     CheckError(AUGraphInitialize(_graph), "18");
