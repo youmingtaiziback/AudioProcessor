@@ -14,11 +14,23 @@
     IBOutlet UIButton*  _fileNameButton;
     IBOutlet UIButton*  _playButton;
     IBOutlet UIButton*  _recordButton;
-    NSString*   _currentFileName;
+    NSURL*      _currentFileName;
 }
 @end
 
 @implementation ViewController
+
+#pragma mark - Life Cycle
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    NSFileManager *manager = [NSFileManager defaultManager];
+    
+    NSString *fileDir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0];
+    NSArray *fileNames = [manager contentsOfDirectoryAtPath:fileDir error:nil];
+    _currentFileName = [NSURL URLWithString:[fileDir stringByAppendingPathComponent:fileNames[0]]];
+    [_fileNameButton setTitle:fileNames[0] forState:UIControlStateNormal];
+}
 
 #pragma mark - Action Methods
 
@@ -41,13 +53,15 @@
     if (isRecoding) {
         NSDateFormatter *formmater = [[NSDateFormatter alloc] init];
         formmater.dateFormat = @"HH:MM:ss";
-        _currentFileName = [formmater stringFromDate:[NSDate date]];
+        NSString *fileName = [formmater stringFromDate:[NSDate date]];
+        NSString *filePath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0] stringByAppendingPathComponent:fileName];
+        _currentFileName = [NSURL fileURLWithPath:filePath];
         [[Recorder sharedInstance] startRecordWithFileName:_currentFileName];
         [_recordButton setTitle:@"Stop" forState:UIControlStateNormal];
     }
     else {
         [[Recorder sharedInstance] stopRecord];
-        [_fileNameButton setTitle:_currentFileName forState:UIControlStateNormal];
+        [_fileNameButton setTitle:[_currentFileName lastPathComponent] forState:UIControlStateNormal];
         [_recordButton setTitle:@"Record" forState:UIControlStateNormal];
     }
 }

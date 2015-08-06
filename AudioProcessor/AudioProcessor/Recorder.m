@@ -27,10 +27,8 @@
     return recorder;
 }
 
-- (void)startRecordWithFileName:(NSString *)name {
-    NSString *filePathDir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0];
-    NSURL *fileURL = [NSURL fileURLWithPath:[filePathDir stringByAppendingPathComponent:name]];
-    _recorder = [[AVAudioRecorder alloc] initWithURL:fileURL settings:nil error:nil];
+- (void)startRecordWithFileName:(NSURL *)name {
+    _recorder = [[AVAudioRecorder alloc] initWithURL:name settings:nil error:nil];
     [_recorder prepareToRecord];
     [_recorder record];
 }

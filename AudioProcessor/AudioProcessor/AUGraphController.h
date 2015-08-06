@@ -10,7 +10,7 @@
 
 @interface AUGraphController : NSObject
 + (instancetype)sharedInstance;
-- (void)playWithFileName:(NSString *)fileName;
+- (void)playWithFileName:(NSURL *)fileName;
 - (void)stop;
 - (void)setRate:(Float32)value;
 - (void)setPitch:(Float32)value;

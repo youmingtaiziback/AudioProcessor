@@ -10,6 +10,6 @@
 
 @interface Recorder : NSObject
 + (instancetype)sharedInstance;
-- (void)startRecordWithFileName:(NSString *)name;
+- (void)startRecordWithFileName:(NSURL *)name;
 - (void)stopRecord;
 @end
