@@ -8,22 +8,13 @@
 
 #import "AUGraphController.h"
 #import <AudioToolbox/AudioToolbox.h>
+#import "CAStreamBasicDescription.h"
+#import <AudioUnit/AudioUnit.h>
 
 #define MAXBUFS  1
 #define NUMFILES 1
 
-typedef struct {
-    AudioStreamBasicDescription asbd;
-    AudioSampleType *data;
-    UInt32 numFrames;
-} SoundBuffer, *SoundBufferPtr;
-
-typedef struct {
-    UInt32 frameNum;
-    UInt32 maxNumFrames;
-    SoundBuffer soundBuffer[MAXBUFS];
-} SourceAudioBufferData, *SourceAudioBufferDataPtr;
-
+const Float64 kGraphSampleRate = 44100.0;
 
 static void CheckError(OSStatus error, const char *operation) {
     if (error == noErr) return;
@@ -42,49 +33,12 @@ static void CheckError(OSStatus error, const char *operation) {
     exit(1);
 }
 
-static void SilenceData(AudioBufferList *inData) {
-    for (UInt32 i=0; i < inData->mNumberBuffers; i++)
-        memset(inData->mBuffers[i].mData, 0, inData->mBuffers[i].mDataByteSize);
-}
-
-static OSStatus renderInput(void *inRefCon,
-                            AudioUnitRenderActionFlags *ioActionFlags,
-                            const AudioTimeStamp *inTimeStamp,
-                            UInt32 inBusNumber,
-                            UInt32 inNumberFrames,
-                            AudioBufferList *ioData) {
-    SourceAudioBufferDataPtr userData = (SourceAudioBufferDataPtr)inRefCon;
-    AudioSampleType *in = userData->soundBuffer[inBusNumber].data;
-    AudioSampleType *out = (AudioSampleType *)ioData->mBuffers[0].mData;
-    
-    UInt32 sample = userData->frameNum * userData->soundBuffer[inBusNumber].asbd.mChannelsPerFrame;
-    
-    // make sure we don't attempt to render more data than we have available in the source buffers
-    // if one buffer is larger than the other, just render silence for that bus until we loop around again
-    if ((userData->frameNum + inNumberFrames) > userData->soundBuffer[inBusNumber].numFrames) {
-        UInt32 offset = (userData->frameNum + inNumberFrames) - userData->soundBuffer[inBusNumber].numFrames;
-        if (offset < inNumberFrames) {
-            // copy the last bit of source
-            SilenceData(ioData);
-            memcpy(out, &in[sample], ((inNumberFrames - offset) * userData->soundBuffer[inBusNumber].asbd.mBytesPerFrame));
-            return noErr;
-        }
-        else {
-            // we have no source data
-            SilenceData(ioData);
-            *ioActionFlags |= kAudioUnitRenderAction_OutputIsSilence;
-            return noErr;
-        }
-    }
-    
-    memcpy(out, &in[sample], ioData->mBuffers[0].mDataByteSize);
-    return noErr;
-}
-
 @interface AUGraphController () {
     AUGraph     _graph;
+    AudioUnit   _eqUnit;
     AudioUnit   _effectUnit;
-    SourceAudioBufferData mUserData;
+    CAStreamBasicDescription mClientFormat;
+    CAStreamBasicDescription mOutputFormat;
 }
 @end
 
@@ -101,8 +55,8 @@ static OSStatus renderInput(void *inRefCon,
     return sharedInstance;
 }
 
-- (void)playWithFileName:(NSURL *)fileName {
-    [self setUpAUGraphWithAssetURL:fileName];
+- (void)playWithFileName:(NSURL *)fileName musicFile:(NSURL *)musicURL {
+    [self setUpAUGraphWithAssetURL:fileName musicFile:musicURL];
 }
 
 - (void)stop {
@@ -117,9 +71,17 @@ static OSStatus renderInput(void *inRefCon,
     AudioUnitSetParameter(_effectUnit, kNewTimePitchParam_Pitch, kAudioUnitScope_Global, 0, value, 0);
 }
 
+- (void)setPreset:(int)index {
+    CFArrayRef mEQPresetsArray;
+    UInt32 size = sizeof(mEQPresetsArray);
+    CheckError(AudioUnitGetProperty(_eqUnit, kAudioUnitProperty_FactoryPresets, kAudioUnitScope_Global, 0, &mEQPresetsArray, &size), "14");
+    AUPreset *aPreset = (AUPreset*)CFArrayGetValueAtIndex(mEQPresetsArray, index);
+    CheckError(AudioUnitSetProperty(_eqUnit, kAudioUnitProperty_PresentPreset, kAudioUnitScope_Global, 0, aPreset, sizeof(AUPreset)), "14");
+}
+
 #pragma mark - Private Methods
 
--(void) setUpAUGraphWithAssetURL:(NSURL *)assetURL {
+-(void) setUpAUGraphWithAssetURL:(NSURL *)assetURL musicFile:(NSURL *)musicURL {
     if (_graph) {
         CheckError(AUGraphClose(_graph), "Couldn't close old AUGraph");
         CheckError (DisposeAUGraph(_graph), "Couldn't dispose old AUGraph");
@@ -128,6 +90,40 @@ static OSStatus renderInput(void *inRefCon,
     CheckError(NewAUGraph(&_graph), "Couldn't create new AUGraph");
     CheckError(AUGraphOpen(_graph), "Couldn't open AUGraph");
     
+    mClientFormat.SetCanonical(2, true);
+    mClientFormat.mSampleRate = kGraphSampleRate;
+    
+    // output format
+    mOutputFormat.SetAUCanonical(2, false);
+    mOutputFormat.mSampleRate = kGraphSampleRate;
+
+    /* 播放背景音乐配置 */
+    // player unit
+    AudioComponentDescription bgfileplayercd = {0};
+    bgfileplayercd.componentType = kAudioUnitType_Generator;
+    bgfileplayercd.componentSubType = kAudioUnitSubType_AudioFilePlayer;
+    bgfileplayercd.componentManufacturer = kAudioUnitManufacturer_Apple;
+    AUNode bgFilePlayerNode;
+    AudioUnit bgFilePlayerUnit;
+    CheckError(AUGraphAddNode(_graph, &bgfileplayercd, &bgFilePlayerNode), "Couldn't add file player node");
+    CheckError(AUGraphNodeInfo(_graph, bgFilePlayerNode, NULL, &bgFilePlayerUnit), "couldn't get file player node");
+
+    // eq unit
+    AudioComponentDescription eqcd = {0};
+    eqcd.componentType = kAudioUnitType_Effect;
+    eqcd.componentSubType = kAudioUnitSubType_AUiPodEQ;
+    eqcd.componentManufacturer = kAudioUnitManufacturer_Apple;
+    AUNode eqNode;
+    CheckError(AUGraphAddNode(_graph, &eqcd, &eqNode), "couldn't get effect node [time/pitch]");
+    CheckError(AUGraphNodeInfo(_graph, eqNode, NULL, &_eqUnit), "couldn't get effect unit from node");
+    // set property
+    CFArrayRef mEQPresetsArray;
+    UInt32 size = sizeof(mEQPresetsArray);
+    CheckError(AudioUnitGetProperty(_eqUnit, kAudioUnitProperty_FactoryPresets, kAudioUnitScope_Global, 0, &mEQPresetsArray, &size), "14");
+    AUPreset *aPreset = (AUPreset*)CFArrayGetValueAtIndex(mEQPresetsArray, 3);
+    CheckError(AudioUnitSetProperty(_eqUnit, kAudioUnitProperty_PresentPreset, kAudioUnitScope_Global, 0, aPreset, sizeof(AUPreset)), "14");
+    
+    /* 播放人声配置 */
     // player unit
     AudioComponentDescription fileplayercd = {0};
     fileplayercd.componentType = kAudioUnitType_Generator;
@@ -162,15 +158,11 @@ static OSStatus renderInput(void *inRefCon,
     CheckError(AUGraphAddNode(_graph, &mixercd, &mixerNode), "couldn't get effect node [time/pitch]");
     CheckError(AUGraphNodeInfo(_graph, mixerNode, NULL, &mixerUnit), "couldn't get effect unit from node");
     // set property
-    CheckError(AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 0, &streamFormat, sizeof(streamFormat)), "14");
-    UInt32 numbuses = 1;
+    UInt32 numbuses = 2;
     CheckError(AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_ElementCount, kAudioUnitScope_Input, 0, &numbuses, sizeof(numbuses)), "16");
-    AURenderCallbackStruct rcbs;
-    rcbs.inputProc = &renderInput;
-    rcbs.inputProcRefCon = &mUserData;
-    CheckError(AUGraphSetNodeInputCallback(_graph, mixerNode, 0, &rcbs), "23");
-    CheckError(AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &mClientFormat, sizeof(mClientFormat)), "123");
-    
+    CheckError(AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &mOutputFormat, sizeof(mOutputFormat)), "123");
+    CheckError(AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 0, &mOutputFormat, sizeof(mOutputFormat)), "14");
+
     // remote io unit
     AudioComponentDescription outputcd = {0};
     outputcd.componentType = kAudioUnitType_Output;
@@ -180,26 +172,58 @@ static OSStatus renderInput(void *inRefCon,
     CheckError(AUGraphAddNode(_graph, &outputcd, &ioNode), "couldn't add remote io node");
     AudioUnit ioUnit;
     CheckError(AUGraphNodeInfo(_graph, ioNode, NULL, &ioUnit), "couldn't get remote io unit");
-    // set property
-    CheckError(AudioUnitSetProperty(ioUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &streamFormat, sizeof(streamFormat)), "15");
     
     // make connections
     CheckError(AUGraphConnectNodeInput(_graph, filePlayerNode, 0, effectNode, 0), "16");
-    CheckError(AUGraphConnectNodeInput(_graph, effectNode, 0, mixerNode, 0), "16");
-    CheckError(AUGraphConnectNodeInput(_graph, mixerNode, 0, ioNode, 0), "17");
+    CheckError(AUGraphConnectNodeInput(_graph, effectNode, 0, mixerNode, 1), "16");
     
+    CheckError(AUGraphConnectNodeInput(_graph, bgFilePlayerNode, 0, eqNode, 0), "16");
+    CheckError(AUGraphConnectNodeInput(_graph, eqNode, 0, mixerNode, 0), "16");
+    
+    CheckError(AUGraphConnectNodeInput(_graph, mixerNode, 0, ioNode, 0), "17");
+
     // initialize
     CheckError(AUGraphInitialize(_graph), "18");
     
-    // config file player unit
-    CFURLRef audioFileURL = CFBridgingRetain(assetURL);
+    CAShow(_graph);
+    
+    // 背景音乐
+    AudioFileID bgAudioFile;
+    CheckError(AudioFileOpenURL((CFURLRef)CFBridgingRetain(musicURL), kAudioFileReadPermission, kAudioFileCAFType, &bgAudioFile), "19");
+    AudioStreamBasicDescription bgFileStreamFormat;
+    UInt32 bgPropsize = sizeof (mOutputFormat);
+    CheckError(AudioFileGetProperty(bgAudioFile, kAudioFilePropertyDataFormat, &propertySize, &bgFileStreamFormat), "20");
+    CheckError(AudioUnitSetProperty(bgFilePlayerUnit, kAudioUnitProperty_ScheduledFileIDs, kAudioUnitScope_Global, 0, &bgAudioFile, sizeof(bgAudioFile)), "21");
+    UInt64 nBGPackets;
+    bgPropsize = sizeof(nBGPackets);
+    CheckError(AudioFileGetProperty(bgAudioFile, kAudioFilePropertyAudioDataPacketCount, &bgPropsize, &nBGPackets), "22");
+    ScheduledAudioFileRegion bgrgn;
+    memset (&bgrgn.mTimeStamp, 0, sizeof(bgrgn.mTimeStamp));
+    bgrgn.mTimeStamp.mFlags = kAudioTimeStampSampleTimeValid;
+    bgrgn.mTimeStamp.mSampleTime = 0;
+    bgrgn.mCompletionProc = NULL;
+    bgrgn.mCompletionProcUserData = NULL;
+    bgrgn.mAudioFile = bgAudioFile;
+    bgrgn.mLoopCount = 100;
+    bgrgn.mStartFrame = 0;
+    bgrgn.mFramesToPlay = nBGPackets * bgFileStreamFormat.mFramesPerPacket;
+    CheckError(AudioUnitSetProperty(bgFilePlayerUnit, kAudioUnitProperty_ScheduledFileRegion, kAudioUnitScope_Global, 0, &bgrgn, sizeof(bgrgn)), "23");
+    UInt32 bgDefaultVal = 0;
+    CheckError(AudioUnitSetProperty(bgFilePlayerUnit, kAudioUnitProperty_ScheduledFilePrime, kAudioUnitScope_Global, 0, &bgDefaultVal, sizeof(bgDefaultVal)), "24");
+    AudioTimeStamp bgStartTime;
+    memset (&bgStartTime, 0, sizeof(bgStartTime));
+    bgStartTime.mFlags = kAudioTimeStampSampleTimeValid;
+    bgStartTime.mSampleTime = -1;
+    CheckError(AudioUnitSetProperty(bgFilePlayerUnit, kAudioUnitProperty_ScheduleStartTimeStamp, kAudioUnitScope_Global, 0, &bgStartTime, sizeof(bgStartTime)), "25");
+    
+    // 人声
+    CFURLRef audioFileURL = (CFURLRef)CFBridgingRetain(assetURL);
     AudioFileID audioFile;
     CheckError(AudioFileOpenURL(audioFileURL, kAudioFileReadPermission, kAudioFileCAFType, &audioFile), "19");
     AudioStreamBasicDescription fileStreamFormat;
-    UInt32 propsize = sizeof (fileStreamFormat);
+    UInt32 propsize = sizeof (mOutputFormat);
     CheckError(AudioFileGetProperty(audioFile, kAudioFilePropertyDataFormat, &propertySize, &fileStreamFormat), "20");
     CheckError(AudioUnitSetProperty(filePlayerUnit, kAudioUnitProperty_ScheduledFileIDs, kAudioUnitScope_Global, 0, &audioFile, sizeof(audioFile)), "21");
-    
     UInt64 nPackets;
     propsize = sizeof(nPackets);
     CheckError(AudioFileGetProperty(audioFile, kAudioFilePropertyAudioDataPacketCount, &propsize, &nPackets), "22");
@@ -214,18 +238,14 @@ static OSStatus renderInput(void *inRefCon,
     rgn.mStartFrame = 0;
     rgn.mFramesToPlay = nPackets * fileStreamFormat.mFramesPerPacket;
     CheckError(AudioUnitSetProperty(filePlayerUnit, kAudioUnitProperty_ScheduledFileRegion, kAudioUnitScope_Global, 0, &rgn, sizeof(rgn)), "23");
-    
-    // prime the file player AU with default values
     UInt32 defaultVal = 0;
     CheckError(AudioUnitSetProperty(filePlayerUnit, kAudioUnitProperty_ScheduledFilePrime, kAudioUnitScope_Global, 0, &defaultVal, sizeof(defaultVal)), "24");
-    
-    // tell the file player AU when to start playing (-1 sample time means next render cycle)
     AudioTimeStamp startTime;
     memset (&startTime, 0, sizeof(startTime));
     startTime.mFlags = kAudioTimeStampSampleTimeValid;
     startTime.mSampleTime = -1;
     CheckError(AudioUnitSetProperty(filePlayerUnit, kAudioUnitProperty_ScheduleStartTimeStamp, kAudioUnitScope_Global, 0, &startTime, sizeof(startTime)), "25");
-    
+
     CheckError(AUGraphStart(_graph), "Couldn't start AUGraph");
 }
 

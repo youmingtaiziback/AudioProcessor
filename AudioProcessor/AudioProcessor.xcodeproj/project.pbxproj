@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6D9256531B74629A003E46B0 /* CAComponentDescription.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6D92564B1B74629A003E46B0 /* CAComponentDescription.cpp */; };
+		6D9256541B74629A003E46B0 /* CAStreamBasicDescription.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6D92564F1B74629A003E46B0 /* CAStreamBasicDescription.cpp */; };
+		6D9256551B74629A003E46B0 /* CAXException.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6D9256511B74629A003E46B0 /* CAXException.cpp */; };
+		6D9256571B748916003E46B0 /* Track1.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 6D9256561B748916003E46B0 /* Track1.mp4 */; };
 		6D92995D1B7242C200C6AB2A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 6D92995C1B7242C200C6AB2A /* main.m */; };
 		6D9299601B7242C200C6AB2A /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 6D92995F1B7242C200C6AB2A /* AppDelegate.m */; };
 		6D9299631B7242C200C6AB2A /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 6D9299621B7242C200C6AB2A /* ViewController.m */; };
@@ -16,7 +20,7 @@
 		6D9299771B7242C200C6AB2A /* AudioProcessorTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6D9299761B7242C200C6AB2A /* AudioProcessorTests.m */; };
 		6D9299821B72448B00C6AB2A /* Recorder.m in Sources */ = {isa = PBXBuildFile; fileRef = 6D9299811B72448B00C6AB2A /* Recorder.m */; };
 		6DBA3DBA1B727E9600910878 /* Player.m in Sources */ = {isa = PBXBuildFile; fileRef = 6DBA3DB91B727E9600910878 /* Player.m */; };
-		6DBA3DBD1B72813400910878 /* AUGraphController.m in Sources */ = {isa = PBXBuildFile; fileRef = 6DBA3DBC1B72813400910878 /* AUGraphController.m */; };
+		6DBA3DBD1B72813400910878 /* AUGraphController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 6DBA3DBC1B72813400910878 /* AUGraphController.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,6 +34,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		6D92564A1B74629A003E46B0 /* CACFDictionary.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CACFDictionary.h; sourceTree = "<group>"; };
+		6D92564B1B74629A003E46B0 /* CAComponentDescription.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CAComponentDescription.cpp; sourceTree = "<group>"; };
+		6D92564C1B74629A003E46B0 /* CAComponentDescription.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CAComponentDescription.h; sourceTree = "<group>"; };
+		6D92564D1B74629A003E46B0 /* CADebugMacros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CADebugMacros.h; sourceTree = "<group>"; };
+		6D92564E1B74629A003E46B0 /* CAMath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CAMath.h; sourceTree = "<group>"; };
+		6D92564F1B74629A003E46B0 /* CAStreamBasicDescription.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CAStreamBasicDescription.cpp; sourceTree = "<group>"; };
+		6D9256501B74629A003E46B0 /* CAStreamBasicDescription.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CAStreamBasicDescription.h; sourceTree = "<group>"; };
+		6D9256511B74629A003E46B0 /* CAXException.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CAXException.cpp; sourceTree = "<group>"; };
+		6D9256521B74629A003E46B0 /* CAXException.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CAXException.h; sourceTree = "<group>"; };
+		6D9256561B748916003E46B0 /* Track1.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = Track1.mp4; sourceTree = "<group>"; };
 		6D9299571B7242C200C6AB2A /* AudioProcessor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AudioProcessor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6D92995B1B7242C200C6AB2A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		6D92995C1B7242C200C6AB2A /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
@@ -48,7 +62,7 @@
 		6DBA3DB81B727E9600910878 /* Player.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Player.h; sourceTree = "<group>"; };
 		6DBA3DB91B727E9600910878 /* Player.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Player.m; sourceTree = "<group>"; };
 		6DBA3DBB1B72813400910878 /* AUGraphController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AUGraphController.h; sourceTree = "<group>"; };
-		6DBA3DBC1B72813400910878 /* AUGraphController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AUGraphController.m; sourceTree = "<group>"; };
+		6DBA3DBC1B72813400910878 /* AUGraphController.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = AUGraphController.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,10 +83,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		6D9256491B74629A003E46B0 /* PublicUtility */ = {
+			isa = PBXGroup;
+			children = (
+				6D92564A1B74629A003E46B0 /* CACFDictionary.h */,
+				6D92564B1B74629A003E46B0 /* CAComponentDescription.cpp */,
+				6D92564C1B74629A003E46B0 /* CAComponentDescription.h */,
+				6D92564D1B74629A003E46B0 /* CADebugMacros.h */,
+				6D92564E1B74629A003E46B0 /* CAMath.h */,
+				6D92564F1B74629A003E46B0 /* CAStreamBasicDescription.cpp */,
+				6D9256501B74629A003E46B0 /* CAStreamBasicDescription.h */,
+				6D9256511B74629A003E46B0 /* CAXException.cpp */,
+				6D9256521B74629A003E46B0 /* CAXException.h */,
+			);
+			path = PublicUtility;
+			sourceTree = "<group>";
+		};
 		6D92994E1B7242C200C6AB2A = {
 			isa = PBXGroup;
 			children = (
+				6D9256561B748916003E46B0 /* Track1.mp4 */,
 				6D9299591B7242C200C6AB2A /* AudioProcessor */,
+				6D9256491B74629A003E46B0 /* PublicUtility */,
 				6D9299731B7242C200C6AB2A /* AudioProcessorTests */,
 				6D9299581B7242C200C6AB2A /* Products */,
 			);
@@ -95,7 +127,7 @@
 				6D9299611B7242C200C6AB2A /* ViewController.h */,
 				6D9299621B7242C200C6AB2A /* ViewController.m */,
 				6DBA3DBB1B72813400910878 /* AUGraphController.h */,
-				6DBA3DBC1B72813400910878 /* AUGraphController.m */,
+				6DBA3DBC1B72813400910878 /* AUGraphController.mm */,
 				6D9299801B72448B00C6AB2A /* Recorder.h */,
 				6D9299811B72448B00C6AB2A /* Recorder.m */,
 				6DBA3DB81B727E9600910878 /* Player.h */,
@@ -217,6 +249,7 @@
 				6D9299661B7242C200C6AB2A /* Main.storyboard in Resources */,
 				6D92996B1B7242C200C6AB2A /* LaunchScreen.xib in Resources */,
 				6D9299681B7242C200C6AB2A /* Images.xcassets in Resources */,
+				6D9256571B748916003E46B0 /* Track1.mp4 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -234,11 +267,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6D9256551B74629A003E46B0 /* CAXException.cpp in Sources */,
 				6D9299631B7242C200C6AB2A /* ViewController.m in Sources */,
+				6D9256531B74629A003E46B0 /* CAComponentDescription.cpp in Sources */,
 				6D9299601B7242C200C6AB2A /* AppDelegate.m in Sources */,
+				6D9256541B74629A003E46B0 /* CAStreamBasicDescription.cpp in Sources */,
 				6D92995D1B7242C200C6AB2A /* main.m in Sources */,
 				6D9299821B72448B00C6AB2A /* Recorder.m in Sources */,
-				6DBA3DBD1B72813400910878 /* AUGraphController.m in Sources */,
+				6DBA3DBD1B72813400910878 /* AUGraphController.mm in Sources */,
 				6DBA3DBA1B727E9600910878 /* Player.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -10,8 +10,9 @@
 
 @interface AUGraphController : NSObject
 + (instancetype)sharedInstance;
-- (void)playWithFileName:(NSURL *)fileName;
+- (void)playWithFileName:(NSURL *)fileName musicFile:(NSURL *)musicURL;
 - (void)stop;
 - (void)setRate:(Float32)value;
 - (void)setPitch:(Float32)value;
+- (void)setPreset:(int)index;
 @end

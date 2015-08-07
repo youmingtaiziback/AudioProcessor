@@ -38,7 +38,8 @@
     static BOOL isPlaying = NO;
     isPlaying = !isPlaying;
     if (isPlaying) {
-        [[AUGraphController sharedInstance] playWithFileName:_currentFileName];
+        NSURL *musicURL = [NSURL URLWithString:[[NSBundle mainBundle] pathForResource:@"Track1" ofType:@"mp4"]];
+        [[AUGraphController sharedInstance] playWithFileName:_currentFileName musicFile:musicURL];
         [_playButton setTitle:@"Stop" forState:UIControlStateNormal];
     }
     else {
@@ -73,6 +74,10 @@
 
 - (IBAction)pitchSliderChanged:(UISlider *)slider {
     [[AUGraphController sharedInstance] setPitch:slider.value];
+}
+
+- (IBAction)setEQ:(UIButton *)button {
+    [[AUGraphController sharedInstance] setPreset:button.tag];
 }
 
 @end
